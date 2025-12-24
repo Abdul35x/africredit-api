@@ -3,7 +3,6 @@
 A Machine Learning API designed to assess creditworthiness in emerging markets using alternative data proxies.
 
 ![AfriCredit Dashboard](dashboard_screenshot.png)
-*(Place a screenshot of your dashboard here named dashboard_screenshot.png)*
 
 # Project Overview
 In many developing economies, traditional credit bureau coverage is low, leaving millions of creditworthy individuals "invisible" to formal banking. AfriCredit attempts to bridge this gap by using a Random Forest Classifier to predict loan repayment probability based on non-traditional metrics like loan duration, installment commitment, and asset stability.
