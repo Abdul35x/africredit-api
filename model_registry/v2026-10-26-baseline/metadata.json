@@ -1,0 +1,35 @@
+{
+  "version": "v2026-10-26-baseline",
+  "published_at": "2026-10-26T08:04:09.744559+00:00",
+  "features": [
+    "duration",
+    "credit_amount",
+    "installment_commitment",
+    "residence_since",
+    "age",
+    "existing_credits",
+    "num_dependents"
+  ],
+  "metrics": {
+    "n_test": 200,
+    "accuracy": 0.71,
+    "precision_good": 0.733,
+    "recall_good": 0.9214,
+    "f1_good": 0.8165,
+    "roc_auc": 0.6504,
+    "confusion_matrix": [
+      [
+        13,
+        47
+      ],
+      [
+        11,
+        129
+      ]
+    ],
+    "cv_roc_auc": 0.6553
+  },
+  "dataset_sha256": "a5d5e97885330084ad126a58f35cff10b50bc22f6fecc81a11b8b7624dccb640",
+  "sklearn_version": "1.9.1",
+  "artifact_sha256": "f86b09f81437284b5236a647da5192b3964fb9d521eb45b71ad1a7f4fb09073e"
+}
