@@ -85,3 +85,40 @@ As a student project, I encountered and solved several real-world engineering hu
 
 Author: Abdurrahman Ibrahim
 Role: Student Software Engineer & Data Science Enthusiast
+
+---
+
+## Architecture Upgrade (Oct 2026) — DDIA-inspired
+
+### Append-only audit log (`app/db.py`)
+Every `/predict` decision is written to a `decision_log` table (SQLite locally,
+PostgreSQL in prod via `DATABASE_URL`). The log is append-only: on Postgres a
+trigger forbids UPDATE/DELETE. If the DB is down, predictions still succeed and
+audit rows spool to `data/audit_spool.jsonl`, replayed on next startup.
+
+```bash
+export DATABASE_URL=postgresql+psycopg://user:pass@host:5432/africredit
+```
+
+### Model registry + batch retraining (`retrain.py`, `app/registry.py`)
+Immutable artifacts under `model_registry/<version>/` (model.pkl + metadata with
+metrics, dataset hash, checksums). Serving uses an atomic pointer swap
+(`model/current_model.json`) — promotion and rollback are one command:
+
+```bash
+python retrain.py                 # extract → train → evaluate → gate → publish (staged)
+python retrain.py --promote       # ...and serve it
+python retrain.py --promote-to v2026-10-26-baseline   # rollback/re-serve
+```
+
+The gate compares cross-validated ROC-AUC against the incumbent champion; a
+challenger that doesn't beat it is never published.
+
+### New endpoints
+- `GET /health` — liveness/readiness (model version + DB status) for LBs.
+- `GET /audit/recent?limit=N` — ops view over the decision log.
+
+### Local production-parity stack
+```bash
+docker compose up --build   # Postgres 16 + 2 web replicas
+```

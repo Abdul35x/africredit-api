@@ -1,0 +1,30 @@
+# Local parity with production topology (DDIA Ch. 1: architecture as a diagram
+# you can actually run). Web scales horizontally behind the health check.
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: africredit
+      POSTGRES_PASSWORD: africredit_dev_only   # override via .env in prod!
+      POSTGRES_DB: africredit
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U africredit"]
+      interval: 5s
+      retries: 5
+
+  web:
+    build: .
+    environment:
+      DATABASE_URL: postgresql+psycopg://africredit:africredit_dev_only@db:5432/africredit
+    ports:
+      - "8000:80"
+    depends_on:
+      db:
+        condition: service_healthy
+    deploy:
+      replicas: 2
+
+volumes:
+  pgdata:
