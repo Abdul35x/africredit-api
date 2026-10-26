@@ -34,7 +34,8 @@ def _sha256_file(path: str) -> str:
 # Publishing artifacts (used by retrain.py)
 # ------------------------------------------------------------------
 def publish_model(version: str, model, *, features: list[str], metrics: dict,
-                  dataset_hash: str) -> str:
+                  dataset_hash: str, onehot_vocab: dict | None = None,
+                  required_features: list[str] | None = None) -> str:
     """Write an immutable model artifact + metadata into the registry."""
     out_dir = os.path.join(MODEL_REGISTRY_DIR, version)
     os.makedirs(out_dir, exist_ok=True)
@@ -50,6 +51,10 @@ def publish_model(version: str, model, *, features: list[str], metrics: dict,
         "dataset_sha256": dataset_hash,
         "sklearn_version": sklearn.__version__,
         "artifact_sha256": _sha256_file(model_path),
+        "onehot_vocab": onehot_vocab or {},
+        # Schema guard at serve time: only these fields are mandatory; the
+        # rest of `features` is optional (encoded as 'unknown' when absent).
+        "required_features": required_features if required_features is not None else features,
     }
     with open(os.path.join(out_dir, "metadata.json"), "w") as f:
         json.dump(meta, f, indent=2)
@@ -90,16 +95,21 @@ class ServedModel:
         self.version = version
         self.model = model
         self.metadata = metadata
-        self.features = metadata["features"]
+        self.features = metadata["features"]          # raw input schema accepted
+        self.vocab = metadata.get("onehot_vocab", {})  # frozen encoding vocab
+        # Older artifacts predate required_features: fall back to full list.
+        self.required = metadata.get("required_features", metadata["features"])
 
     def predict(self, application: dict):
         # Schema guard (Ch. 4): refuse inputs that don't match what we trained on
-        # rather than silently mispredicting.
-        missing = [f for f in self.features if f not in application]
+        # rather than silently mispredicting. Categoricals are optional —
+        # transform() maps missing ones to an explicit 'unknown' bucket.
+        missing = [f for f in self.required if f not in application]
         if missing:
             raise ValueError(f"Request missing features required by model "
                              f"{self.version}: {missing}")
-        X = [[application[f] for f in self.features]]
+        from app.features import transform_row
+        X = transform_row(application, self.vocab)
         prediction = int(self.model.predict(X)[0])
         proba = self.model.predict_proba(X)[0]
         probability = float(proba[1])

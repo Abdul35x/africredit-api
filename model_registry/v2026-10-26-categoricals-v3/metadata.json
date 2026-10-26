@@ -1,0 +1,109 @@
+{
+  "version": "v2026-10-26-categoricals-v3",
+  "published_at": "2026-10-26T08:13:28.972469+00:00",
+  "features": [
+    "duration",
+    "credit_amount",
+    "installment_commitment",
+    "residence_since",
+    "age",
+    "existing_credits",
+    "num_dependents",
+    "checking_status",
+    "savings_status",
+    "employment",
+    "credit_history",
+    "purpose",
+    "personal_status",
+    "other_parties",
+    "property_magnitude",
+    "other_payment_plans",
+    "housing",
+    "job",
+    "foreign_worker"
+  ],
+  "metrics": {
+    "n_test": 200,
+    "accuracy": 0.685,
+    "precision_good": 0.7104,
+    "recall_good": 0.9286,
+    "f1_good": 0.805,
+    "roc_auc": 0.6932,
+    "confusion_matrix": [
+      [
+        7,
+        53
+      ],
+      [
+        10,
+        130
+      ]
+    ],
+    "cv_roc_auc": 0.7276
+  },
+  "dataset_sha256": "9b6252803e1d29389a2b9597c5b527259e4b77c4ae245403b181ce473daeda23",
+  "sklearn_version": "1.9.1",
+  "artifact_sha256": "f5c9d4ce52222bacc8d776b42d710066eade09c1312afe6cec248cfd84a16c83",
+  "onehot_vocab": {
+    "credit_history": [
+      "existing paid",
+      "critical/other existing credit",
+      "delayed previously",
+      "all paid",
+      "no credits/all paid"
+    ],
+    "purpose": [
+      "radio/tv",
+      "new car",
+      "furniture/equipment",
+      "used car",
+      "business",
+      "education"
+    ],
+    "personal_status": [
+      "male single",
+      "female div/dep/mar",
+      "male mar/wid",
+      "male div/sep"
+    ],
+    "other_parties": [
+      "none",
+      "guarantor",
+      "co applicant"
+    ],
+    "property_magnitude": [
+      "car",
+      "real estate",
+      "life insurance",
+      "no known property"
+    ],
+    "other_payment_plans": [
+      "none",
+      "bank",
+      "stores"
+    ],
+    "housing": [
+      "own",
+      "rent",
+      "for free"
+    ],
+    "job": [
+      "skilled",
+      "unskilled resident",
+      "high qualif/self emp/mgmt"
+    ],
+    "foreign_worker": [
+      "yes",
+      "no"
+    ]
+  },
+  "required_features": [
+    "duration",
+    "credit_amount",
+    "installment_commitment",
+    "residence_since",
+    "age",
+    "existing_credits",
+    "num_dependents"
+  ]
+}

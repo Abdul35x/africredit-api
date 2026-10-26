@@ -35,9 +35,11 @@ from sklearn.metrics import (accuracy_score, confusion_matrix, f1_score,
                              precision_score, recall_score, roc_auc_score)
 from sklearn.model_selection import train_test_split
 
+from app.features import (NUMERIC_FEATURES, ORDINAL_CATEGORICALS, TARGET,
+                          build_vocab, transform)
 from app.registry import (get_current_version, load_metadata, publish_model,
                           set_current_version)
-from train_config import FEATURES, LABEL_MAP, TARGET
+from train_config import FEATURES, LABEL_MAP
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DATA_DIR = os.path.join(BASE_DIR, "data")
@@ -91,7 +93,9 @@ def load_labeled_audit_rows() -> pd.DataFrame:
         # Ground truth would come from a repayment-events join (Ch. 11).
         # Placeholder: only rows explicitly labeled count.
         if "outcome" in payload:
-            rec = {f: payload[f] for f in FEATURES}
+            # Take whatever raw fields exist (v1 audit rows lack categoricals;
+            # transform() maps missing ones to 'unknown').
+            rec = {f: payload.get(f) for f in FEATURES}
             rec[TARGET] = payload["outcome"]
             records.append(rec)
     df = pd.DataFrame(records)
@@ -106,16 +110,22 @@ def dataset_hash(df: pd.DataFrame) -> str:
 # ------------------------------------------------------------------
 # 2-4. PREPROCESS / TRAIN / EVALUATE
 # ------------------------------------------------------------------
-def preprocess(frames: list[pd.DataFrame]) -> tuple[pd.DataFrame, pd.Series]:
+def preprocess(frames: list[pd.DataFrame]) -> tuple[pd.DataFrame, pd.Series, dict]:
+    """Batch-side preprocessing. Calls THE SAME transform() that serving uses
+    (app/features.py) — one code path, no training/serving skew (Ch. 10)."""
     df = pd.concat(frames, ignore_index=True)
-    df = df.dropna(subset=FEATURES + [TARGET])
-    X = df[FEATURES].copy()
+    # Rows must carry all raw inputs + a label; categoricals missing from old
+    # v1-style audit rows are filled with 'unknown' inside transform().
+    required = NUMERIC_FEATURES + [TARGET]
+    df = df.dropna(subset=required)
+    for c in NUMERIC_FEATURES:
+        df[c] = pd.to_numeric(df[c], errors="coerce")
+    df = df[df[NUMERIC_FEATURES].notna().all(axis=1)]
     y = df[TARGET].map(LABEL_MAP).astype(int)
-    # Coerce types defensively — audit-sourced JSON may arrive as strings.
-    for c in FEATURES:
-        X[c] = pd.to_numeric(X[c], errors="coerce")
-    keep = X.notna().all(axis=1)
-    return X[keep], y[keep]
+
+    vocab = build_vocab(df)
+    X = transform(df, vocab)
+    return X, y, vocab
 
 
 def _new_model() -> RandomForestClassifier:
@@ -201,8 +211,10 @@ def run(promote: bool, version: str | None) -> int:
     if len(labeled):
         frames.append(labeled)
 
-    X, y = preprocess(frames)
+    X, y, vocab = preprocess(frames)
     print(f"[preprocess] training matrix: {X.shape}, positive rate: {y.mean():.3f}")
+    print(f"[preprocess] one-hot vocab: {sum(len(v) for v in vocab.values())} levels "
+          f"across {len(vocab)} columns")
 
     model, X_test, y_test = train(X, y)
     metrics = evaluate(model, X_test, y_test)
@@ -218,7 +230,9 @@ def run(promote: bool, version: str | None) -> int:
         return 1
 
     out_dir = publish_model(version, model, features=FEATURES,
-                            metrics=metrics, dataset_hash=dataset_hash(X))
+                            metrics=metrics, dataset_hash=dataset_hash(X),
+                            onehot_vocab=vocab,
+                            required_features=NUMERIC_FEATURES)
     print(f"[publish] artifact at {out_dir}")
 
     if promote:

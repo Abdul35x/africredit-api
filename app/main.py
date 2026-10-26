@@ -55,6 +55,10 @@ app.mount("/static", StaticFiles(directory="app/static"), name="static")
 # 2. DATA VALIDATION (The "Bouncer" — stricter, with domain bounds)
 # ---------------------------------------------------------
 class LoanApplication(BaseModel):
+    """v2 raw schema: the 7 numeric fields (required, unchanged — old clients
+    keep working, Ch. 4 backward compatibility) plus optional categorical
+    fields that unlock the richer model. Missing categoricals are treated as
+    'unknown' by the feature pipeline, never silently dropped."""
     duration: int = Field(gt=0, le=120, description="Loan term in months")
     credit_amount: float = Field(gt=0, le=1_000_000)
     installment_commitment: int = Field(ge=1, le=24)
@@ -62,6 +66,21 @@ class LoanApplication(BaseModel):
     age: int = Field(ge=18, le=120)
     existing_credits: int = Field(ge=1, le=4)
     num_dependents: int = Field(ge=0, le=5)
+
+    # Optional categorical signals (values follow the German Credit vocabulary;
+    # matching is case/whitespace-insensitive in app/features.py)
+    checking_status: str | None = Field(None, examples=["<0 DM", "no checking account"])
+    savings_status: str | None = Field(None, examples=["<100 DM", ">=1000 DM"])
+    employment: str | None = Field(None, examples=["1<=X<4", ">=7 years"])
+    credit_history: str | None = Field(None, examples=["existing paid"])
+    purpose: str | None = None
+    personal_status: str | None = None
+    other_parties: str | None = None
+    property_magnitude: str | None = None
+    other_payment_plans: str | None = None
+    housing: str | None = None
+    job: str | None = None
+    foreign_worker: str | None = None
 
     @model_validator(mode="after")
     def check_plausible_ratios(self):

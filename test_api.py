@@ -43,6 +43,24 @@ def test_predict_ok_and_audited():
     assert any(a["request_id"] == body["request_id"] for a in audit)
 
 
+def test_predict_handles_missing_and_null_categoricals():
+    """Regression: single-row serve-time encoding used to raise pandas'
+    'NA values are not allowed in this context' when categorical fields were
+    omitted or sent as null. They must encode as the all-zeros 'other' bucket
+    and still return 200."""
+    r_omit = client.post("/predict", json=VALID_APP)
+    assert r_omit.status_code == 200, r_omit.text
+
+    nulls = {**VALID_APP, "credit_history": None, "purpose": None, "job": None}
+    r_null = client.post("/predict", json=nulls)
+    assert r_null.status_code == 200, r_null.text
+
+    # Unseen levels must also be tolerated (encoded as 'other')
+    unseen = {**VALID_APP, "credit_history": "some-never-seen-level"}
+    r_unseen = client.post("/predict", json=unseen)
+    assert r_unseen.status_code == 200, r_unseen.text
+
+
 def test_predict_rejects_invalid_age():
     bad = dict(VALID_APP, age=15)
     assert client.post("/predict", json=bad).status_code == 422
